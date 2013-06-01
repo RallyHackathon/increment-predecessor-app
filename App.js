@@ -15,11 +15,11 @@ Ext.define('CustomApp', {
     	this.add({
 			type: 'container',
             flex: 1,
-			height: '40px',
+			height: '100%',
 			items: [{
-				xtype: 'rallyprojectpicker',
+				xtype: 'rallyprojecttree',
 	    		listeners: {
-			        change: {
+			        itemselected: {
 			        	fn: this._handleProjectSelection,
 			        	scope: this
 			        }
@@ -31,7 +31,8 @@ Ext.define('CustomApp', {
             flex: 4,
             id: 'infovis',
             width: '100%',
-            height: '100%'
+            height: '100%',
+            componentCls: 'zombie'
         });
         var wsapiStore = Ext.create('Rally.data.WsapiDataStore', {
             model: 'Type Definition',
@@ -77,6 +78,7 @@ Ext.define('CustomApp', {
 		    success: function(incrementModel) {
 		    	this.grid = this.add({
                     flex: 1,
+                    height: '100%',
 		    		title: this.portfolioItemType.get('Name'),
 	    			xtype: 'rallygrid',
 		            model: incrementModel,
@@ -96,12 +98,13 @@ Ext.define('CustomApp', {
 		});
     },
 
-	_handleProjectSelection: function(field, value, eOpts) {
+	_handleProjectSelection: function(treeitem) {
+        var projectUri = treeitem.getRecord().getRef().getUri();
     	var newcontextConfig = { 
-    		project: value,
+    		project: projectUri,
     		projectScopeDown: true
 	    };
-	    console.log("project = " + value);
+	    console.log("project = " + projectUri);
     	this.grid.destroy();
     	this._retrieveModel(newcontextConfig)
     },
@@ -130,7 +133,7 @@ Ext.define('CustomApp', {
     			console.log("count of child stories = " + childStories.length);
     			var json = {
     				id: record.getId(),
-    				name: this._getHrefForStory(record.getId(), record.get('FormattedID'), Ext.util.Format.lowercase(this.portfolioItemTypePath)),
+    				name: this._getHrefForStory(record.getId(), record.get('Name'), record.get('FormattedID'), Ext.util.Format.lowercase(this.portfolioItemTypePath), ''),
     				data: { Estimate: record.get('Rank') },
     				children: []
     			}
@@ -160,14 +163,14 @@ Ext.define('CustomApp', {
 
         return {
             id: '' + prefix + value.data.ObjectID,
-            name: this._getHrefForStory(value.data.ObjectID, value.data._UnformattedID, 'userstory'),
+            name: this._getHrefForStory(value.data.ObjectID, value.data.Name, value.data._UnformattedID, 'userstory', this.storyPrefix),
             data: {},
             children: children
         };
     },
 
-    _getHrefForStory: function(ObjectID, FormattedID, type) {
-        return '<a href="https://rally1.rallydev.com/#/9974888727ud/detail/' + type + '/' + ObjectID + '">' + this.storyPrefix + FormattedID +'</a>'
+    _getHrefForStory: function(oid, name, fid, type, prefix) {
+        return '<a href="https://rally1.rallydev.com/#/9974888727ud/detail/' + type + '/' + oid + '" title="' + name + '">' + prefix + fid + '</a>';
     },
 
     _renderVisualization: function(json) {
@@ -222,13 +225,13 @@ Ext.define('CustomApp', {
                     };
                     //set label styles
                     var style = label.style;
-                    style.width = 150 + 'px';
+                    style.width = 100 + 'px';
                     style.height = 50 + 'px';            
                     style.cursor = 'pointer';
                     style.color = '#333';
-                    style.fontSize = '0.8em';
+                    style.fontSize = '1.3em';
                     style.textAlign= 'center';
-                    style.paddingTop = '3px';
+                    style.paddingTop = '5px';
                 },
                 
                 //This method is called right before plotting

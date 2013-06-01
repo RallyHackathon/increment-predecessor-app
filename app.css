@@ -1,3 +1,5 @@
-.app {
-     /* Add app styles here */
+canvas {
+     background-image: url('re6-zombie-jumping.jpg');
+     background-repeat: no-repeat;
+     background-position: center;
 }
