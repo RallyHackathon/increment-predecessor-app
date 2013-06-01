@@ -6,7 +6,8 @@ Ext.define('CustomApp', {
     	Rally.data.util.PortfolioItemHelper.loadTypeOrDefault({
             defaultToLowest: true,
             success: function(record) {
-               	this._retrieveModel(record);
+            	this.portfolioItemType = record;
+               	this._retrieveModel();
             },
             scope: this
         });
@@ -25,18 +26,18 @@ Ext.define('CustomApp', {
 		});
     },
 
-    _retrieveModel: function(portfolioItemType) {
-    	var viewport = Ext.create('Ext.Viewport', {
-			layout: 'border'
-		});
+    _retrieveModel: function(contextConfig) {
+		if (typeof contextConfig === "undefined") {
+			contextConfig = {};
+		}
+		console.log("contextConfig = " + JSON.stringify(contextConfig));
     	Rally.data.ModelFactory.getModel({
-		    type: portfolioItemType.get('TypePath'),
+		    type: this.portfolioItemType.get('TypePath'),
 		    scope: this,
+            context: contextConfig,
 		    success: function(incrementModel) {
-		    	this.grid = viewport.add({
-		    		region: 'west',
-		    		flex: 1,
-		    		title: portfolioItemType.get('Name'),
+		    	this.grid = this.add({
+		    		title: this.portfolioItemType.get('Name'),
 		    		width: '30%',
 	    			xtype: 'rallygrid',
 		            model: incrementModel,
@@ -44,32 +45,38 @@ Ext.define('CustomApp', {
 		            columnCfgs: [
 		                'FormattedID',
 		                'Name'
-		            ]
+		            ],
+		            listeners: {
+		            	select: {
+		            		fn: this._selectPortfolioItemFromGrid,
+		            		scope: this
+		            	}
+		            }
 		    	});
 			}
 		});
-    	this.board = viewport.add({
-    		region: 'east',
-    		flex: 1,
-    		width: '70%',
-	        xtype: 'rallycardboard',
-	        types: ['User Story'],
-            margin: '40 0 0 0',
-	        attribute: 'ScheduleState'
-	    });    		
     },
 
 	_handleProjectSelection: function(field, value, eOpts) {
-    	var newStoreConfig = { 
-    		storeConfig: {
-	        	context: {
-	        		project: value,
-	        		projectScopeDown: true
-	        	}
-	        }
+    	var newcontextConfig = { 
+    		project: value,
+    		projectScopeDown: true
 	    };
-    	this.grid.refresh();
-    	this.board.refresh(newStoreConfig);
+	    console.log("project = " + value);
+    	this.grid.destroy();
+    	this._retrieveModel(newcontextConfig)
+    },
+
+    _selectPortfolioItemFromGrid: function(row, record, index, eOpts) {
+    	console.log("selected record: " + record.get('Name'));
+
+    	// Step 1 - Get portfolio item object from selected record id
+
+    	// Step 2 - Get childen user story collection from selected portfolio item
+
+    	// Step 3 - Iterate through each child to build JSON payload for each user story to pass to jit spacetree
+
+
     }
 
 });
