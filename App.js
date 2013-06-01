@@ -3,6 +3,13 @@ Ext.define('CustomApp', {
     componentCls: 'app',
 
     launch: function() {
+    	Rally.data.util.PortfolioItemHelper.loadTypeOrDefault({
+            defaultToLowest: true,
+            success: function(record) {
+               	this._retrieveModel(record);
+            },
+            scope: this
+        });
     	this.add({
 			type: 'container',
 			height: '40px',
@@ -16,22 +23,20 @@ Ext.define('CustomApp', {
 			    }
 			}]
 		});
-    	
-    	this._retrieveModel();
     },
 
-    _retrieveModel: function() {
+    _retrieveModel: function(portfolioItemType) {
     	var viewport = Ext.create('Ext.Viewport', {
 			layout: 'border'
 		});
     	Rally.data.ModelFactory.getModel({
-		    type: 'portfolioitem/increment',
+		    type: portfolioItemType.get('TypePath'),
 		    scope: this,
 		    success: function(incrementModel) {
 		    	this.grid = viewport.add({
 		    		region: 'west',
 		    		flex: 1,
-		    		title: 'Increments',
+		    		title: portfolioItemType.get('Name'),
 		    		width: '30%',
 	    			xtype: 'rallygrid',
 		            model: incrementModel,
@@ -39,7 +44,6 @@ Ext.define('CustomApp', {
 		            columnCfgs: [
 		                'FormattedID',
 		                'Name'
-		                //'Owner'
 		            ]
 		    	});
 			}
@@ -56,8 +60,6 @@ Ext.define('CustomApp', {
     },
 
 	_handleProjectSelection: function(field, value, eOpts) {
-		console.log("the value of field " + field + " is " + value);
-    	//alert(value);
     	var newStoreConfig = { 
     		storeConfig: {
 	        	context: {
