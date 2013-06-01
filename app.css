@@ -1,5 +1,6 @@
 canvas {
-     background-image: url('re6-zombie-jumping.jpg');
+     background-image: url('zombie_hackathon.jpg');
      background-repeat: no-repeat;
      background-position: center;
+     opacity: 0.5;
 }

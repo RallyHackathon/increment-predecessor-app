@@ -194,7 +194,7 @@ Ext.define('CustomApp', {
                 //set overridable=true for styling individual
                 //nodes or edges
                 Node: {
-                    height: 40,
+                    height: 50,
                     width: 100,
                     type: 'rectangle',
                     color: '#aaa',
@@ -203,7 +203,8 @@ Ext.define('CustomApp', {
                 
                 Edge: {
                     type: 'bezier',
-                    overridable: true
+                    overridable: true,
+                    color: '#252525'
                 },
                 
                 onBeforeCompute: function(node){
@@ -232,6 +233,7 @@ Ext.define('CustomApp', {
                     style.fontSize = '1.3em';
                     style.textAlign= 'center';
                     style.paddingTop = '5px';
+                    style.border = '2px solid #252525';
                 },
                 
                 //This method is called right before plotting
@@ -266,7 +268,7 @@ Ext.define('CustomApp', {
                 //override the Edge global style properties.
                 onBeforePlotLine: function(adj){
                     if (adj.nodeFrom.selected && adj.nodeTo.selected) {
-                        adj.data.$color = "#eed";
+                        adj.data.$color = "#ff0000";
                         adj.data.$lineWidth = 3;
                     }
                     else {
