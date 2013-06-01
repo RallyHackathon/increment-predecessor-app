@@ -31,8 +31,33 @@ Ext.define('CustomApp', {
             flex: 4,
             id: 'infovis',
             width: '100%',
-            height: 400
+            height: '100%'
         });
+        var wsapiStore = Ext.create('Rally.data.WsapiDataStore', {
+            model: 'Type Definition',
+            scope: this,
+            autoLoad: true,
+            context: {
+                workspace: this.getContext().getWorkspaceRef(),
+                project: null
+            },
+            filters: [
+                {
+                    property: 'Name',
+                    value: 'Hierarchical Requirement'
+                }
+            ],
+            listeners: {
+                load: {
+                    fn: this._onPortfolioItemRetrieved,
+                    scope: this
+                }
+            }
+        })
+    },
+
+    _onPortfolioItemRetrieved: function(store) {
+        this.storyPrefix = store.getAt(0).get('IDPrefix');
     },
 
     _retrieveModel: function(contextConfig) {
@@ -43,22 +68,22 @@ Ext.define('CustomApp', {
 				projectScopeDown: true
 			};
 		}
+        this.portfolioItemTypePath = this.portfolioItemType.get('TypePath')
 		console.log("contextConfig = " + JSON.stringify(contextConfig));
     	Rally.data.ModelFactory.getModel({
-		    type: this.portfolioItemType.get('TypePath'),
+		    type: this.portfolioItemTypePath,
 		    scope: this,
             context: contextConfig,
 		    success: function(incrementModel) {
 		    	this.grid = this.add({
                     flex: 1,
 		    		title: this.portfolioItemType.get('Name'),
-		    		// width: '30%',
 	    			xtype: 'rallygrid',
 		            model: incrementModel,
-		            // margin: '40 0 0 0',
 		            columnCfgs: [
 		                'FormattedID',
-		                'Name'
+		                'Name',
+                        'DirectChildrenCount'
 		            ],
 		            listeners: {
 		            	select: {
@@ -84,13 +109,14 @@ Ext.define('CustomApp', {
     _selectPortfolioItemFromGrid: function(row, record, index, eOpts) {
     	console.log("selected portfolio item: " + record.get('Name') + " with ID " + record.getId());
     	this.lookbackApiStore = Ext.create('Rally.data.lookback.SnapshotStore', {
+            scope: this,
     		find: {
                 '_TypeHierarchy': 'HierarchicalRequirement',
                 '_ItemHierarchy': record.getId(),
                 // 'Children': null,
                 '__At': 'current'
             },
-            fetch: ['Name', 'ScheduleState', 'PlanEstimate', 'Predecessors', 'Successors', 'PortfolioItem'],
+            fetch: ['Name', '_UnformattedID', 'ScheduleState', 'PlanEstimate', 'Predecessors', 'Successors', 'PortfolioItem'],
             hydrate: ['ScheduleState']
     	});
 
@@ -98,41 +124,60 @@ Ext.define('CustomApp', {
     		scope: this,
     		callback: function(records, operation, success) {
     			console.log("query # of records = " + records.length);
-    			// 1. Find all records that are portfolio item child
     			var childStories = Ext.Array.filter(records, function(story) {
     				return story.data.PortfolioItem == record.getId();
     			}, this)
     			console.log("count of child stories = " + childStories.length);
-    			// 2. For each child run through successors recursively into JSON for visualization
     			var json = {
     				id: record.getId(),
-    				name: record.get('Name'),
+    				name: this._getHrefForStory(record.getId(), record.get('FormattedID'), Ext.util.Format.lowercase(this.portfolioItemTypePath)),
     				data: { Estimate: record.get('Rank') },
     				children: []
     			}
     			Ext.Array.each(childStories, function(value) {
-	    			console.log("record = " + value.data.Name);
-	    			json.children.push({
-	    				id: value.data.ObjectID,
-	    				name: value.data.Name,
-	    				data: {},
-	    				children: []
-	    			})
-    			})
-    			console.log("json = " + JSON.stringify(json));
+                    json.children.push(this._addChildJson(childStories, value, record.getId()));
+    			}, this);
+    			console.log("json = " + JSON.stringify(json, null, 4));
                 this._renderVisualization(json);
     		}
     	})
     },
 
+    _addChildJson: function(childStories, value, prefix) {
+        console.log("record = " + this.storyPrefix + value.data._UnformattedID);
+        var children = [];
+
+        if (value.data.Successors.length > 0) {
+            Ext.Array.each(value.data.Successors, function(item) {
+                var child = Ext.Array.filter(childStories, function(story) {
+                    return story.data.ObjectID == item;
+                });
+                if (child.length == 1) {
+                    children.push(this._addChildJson(childStories, child[0], '' + prefix + value.data.ObjectID + child[0].data.ObjectID));
+                }
+            }, this);
+        }
+
+        return {
+            id: '' + prefix + value.data.ObjectID,
+            name: this._getHrefForStory(value.data.ObjectID, value.data._UnformattedID, 'userstory'),
+            data: {},
+            children: children
+        };
+    },
+
+    _getHrefForStory: function(ObjectID, FormattedID, type) {
+        return '<a href="https://rally1.rallydev.com/#/9974888727ud/detail/' + type + '/' + ObjectID + '">' + this.storyPrefix + FormattedID +'</a>'
+    },
+
     _renderVisualization: function(json) {
+        this.visualizationContainer.update('');
         var st = new $jit.ST({
                 //id of viz container element
                 injectInto: 'infovis-body',
                 //set duration for the animation
                 duration: 800,
                 // width: 600,
-                height: 400,
                 //set animation transition type
                 transition: $jit.Trans.Quart.easeInOut,
                 //set distance between node and its children
@@ -146,8 +191,8 @@ Ext.define('CustomApp', {
                 //set overridable=true for styling individual
                 //nodes or edges
                 Node: {
-                    height: 20,
-                    width: 60,
+                    height: 40,
+                    width: 100,
                     type: 'rectangle',
                     color: '#aaa',
                     overridable: true
@@ -171,18 +216,14 @@ Ext.define('CustomApp', {
                 //your node.
                 onCreateLabel: function(label, node){
                     label.id = node.id;            
-                    label.innerHTML = node.id;
+                    label.innerHTML = node.name;
                     label.onclick = function(){
-                        if(normal.checked) {
-                          st.onClick(node.id);
-                        } else {
-                        st.setRoot(node.id, 'animate');
-                        }
+                      st.onClick(node.id);
                     };
                     //set label styles
                     var style = label.style;
-                    style.width = 60 + 'px';
-                    style.height = 17 + 'px';            
+                    style.width = 150 + 'px';
+                    style.height = 50 + 'px';            
                     style.cursor = 'pointer';
                     style.color = '#333';
                     style.fontSize = '0.8em';
